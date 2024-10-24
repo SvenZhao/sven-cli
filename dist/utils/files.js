@@ -3,8 +3,9 @@
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.getFilename = void 0;
-var _path = require("path");
-var getFilename = exports.getFilename = function getFilename(file) {
-  var filename = (0, _path.basename)(file.path);
+exports.isImageFile = void 0;
+var imageExtensions = /\.(jpg|jpeg|png|gif)$/i;
+// 判断文件是否为图片
+var isImageFile = exports.isImageFile = function isImageFile(file) {
+  return imageExtensions.test(file);
 };

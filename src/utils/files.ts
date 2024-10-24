@@ -1,5 +1,3 @@
-import { basename } from "path";
-
-export const getFilename = (file: { path: string; }) => {
-  const filename = basename(file.path);
-};
+const imageExtensions = /\.(jpg|jpeg|png|gif)$/i;
+// 判断文件是否为图片
+export const isImageFile = (file: string) => imageExtensions.test(file);

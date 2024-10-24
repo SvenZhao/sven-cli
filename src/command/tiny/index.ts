@@ -1,40 +1,46 @@
-import { ArgumentsCamelCase, Argv, Options, PositionalOptions } from "yargs";
-import fg from "fast-glob";
+import { ArgumentsCamelCase, Argv } from "yargs";
+import mergeStream from "merge-stream";
+import gulp from "gulp";
 import { isUrl } from "@/utils/url";
-
-/** 入参 */
-interface ITinyArgs {
-  paths?: string[]; // 文件路径数组
-  d?: boolean; // 目录压缩标志
-  url?: boolean; // URL 图片压缩标志
+import { generateCommand, IPositionals } from "@/utils/yargs";
+import { isImageFile } from "@/utils/files";
+import { download2gulp, tinypngFree } from "@/utils/gulp";
+interface IArguments {
+  /* 文件 */
+  files: string[];
 }
-const positional: { key: string } & PositionalOptions = {
-  key: "files",
-  describe: "要压缩的文件路径列表，如 ./1.jpg, ./2.jpg",
-  type: "string",
-  array: true, // 明确指出 paths 是字符串数组
-};
-const options: Array<{ key: keyof ITinyArgs } & Options> = [];
+/** 入参 */
+const positionals: IPositionals[] = [
+  {
+    required: true,
+    key: "files",
+    describe: "要压缩的图片 ./* ./1.jpg http://www.baidu.com/1.jpg",
+    type: "string",
+    isMultiple: true,
+  },
+];
+
 const tinyCommand = {
-  command: "tiny <paths...>",
-  describe: "使用tinypng压缩图片资源1",
-  builder: (yargs: Argv): Argv<ITinyArgs> => {
-    options.forEach(({ key, alias, type, describe }) => {
-      yargs.option(key, { alias, type, describe });
+  command: generateCommand(positionals),
+  describe: "使用tinypng压缩图片资源",
+  builder: (yargs: Argv<IArguments>) => {
+    positionals.forEach(({ key, ...config }) => {
+      yargs.positional(key, config);
     });
-    return yargs.positional(positional.key, positional);
+    return yargs;
   }, // 引用抽象函数
-  handler: async (argv: ArgumentsCamelCase<ITinyArgs>) => {
-    const paths = argv.paths || []; // 确保 paths 始终是数组
-    // 过滤 URL 和本地路径
-    const urls = paths.filter(isUrl); // 筛选出 URL
-    const localPaths = paths.filter((path) => !isUrl(path)); // 筛选出本地路径
-    // 只匹配本地图片文件
-    const files = await fg(localPaths.map((path) => `${path}/**/*.{jpg,jpeg,png,gif}`));
-    console.log("匹配到的文件列表:", files);
-    if (urls.length) {
-      console.info("匹配到的url", urls);
-    }
+  handler: async (argv: ArgumentsCamelCase<IArguments>) => {
+    console.log("argv", argv);
+    const files = argv.files || []; // 确保 paths 始终是数组
+    const urlFiles = files.filter(isUrl).filter(isImageFile);
+    const localFiles = files.filter((file) => !isUrl(file)).filter(isImageFile);
+    const urlStream = download2gulp(urlFiles);
+    const localStream = gulp.src(localFiles);
+    console.log("匹配到的图片文件:", localStream, urlStream);
+    // 输出到 'output' 目录
+    mergeStream(urlStream, localStream)
+      .pipe(await tinypngFree())
+      .pipe(gulp.dest("output"));
   },
 };
 
