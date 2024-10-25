@@ -1,10 +1,10 @@
-import { ArgumentsCamelCase, Argv } from "yargs";
+import { ArgumentsCamelCase, Argv, CommandModule } from "yargs";
 import mergeStream from "merge-stream";
 import gulp from "gulp";
 import { isUrl } from "@/utils/url";
 import { generateCommand, IPositionals } from "@/utils/yargs";
 import { isImageFile } from "@/utils/files";
-import { download2gulp, tinypngFree } from "@/utils/gulp";
+import { download2gulp } from "@/utils/gulp";
 interface IArguments {
   /* 文件 */
   files: string[];
@@ -20,14 +20,14 @@ const positionals: IPositionals[] = [
   },
 ];
 
-const tinyCommand = {
+const tinyCommand: CommandModule<{}, IArguments> = {
   command: generateCommand(positionals),
   describe: "使用tinypng压缩图片资源",
-  builder: (yargs: Argv<IArguments>) => {
+  builder: (yargs: Argv) => {
     positionals.forEach(({ key, ...config }) => {
       yargs.positional(key, config);
     });
-    return yargs;
+    return yargs as any;
   }, // 引用抽象函数
   handler: async (argv: ArgumentsCamelCase<IArguments>) => {
     console.log("argv", argv);
@@ -38,9 +38,7 @@ const tinyCommand = {
     const localStream = gulp.src(localFiles);
     console.log("匹配到的图片文件:", localStream, urlStream);
     // 输出到 'output' 目录
-    mergeStream(urlStream, localStream)
-      .pipe(await tinypngFree())
-      .pipe(gulp.dest("output"));
+    mergeStream(urlStream, localStream).pipe(gulp.dest("output"));
   },
 };
 
