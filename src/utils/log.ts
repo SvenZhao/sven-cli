@@ -6,6 +6,9 @@ const log = {
   error: (string: string) => {
     console.log(c.red(string));
   },
+  warn: (string: string) => {
+    console.log(c.red(string));
+  },
   done: (string: string) => {
     console.log(c.green(string));
   },

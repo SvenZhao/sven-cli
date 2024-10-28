@@ -1,10 +1,13 @@
 import { ArgumentsCamelCase, Argv, CommandModule } from "yargs";
 import mergeStream from "merge-stream";
+const download = require('gulp-download2');
 import gulp from "gulp";
 import { isUrl } from "@/utils/url";
 import { generateCommand, IPositionals } from "@/utils/yargs";
 import { isImageFile } from "@/utils/files";
-import { download2gulp } from "@/utils/gulp";
+import { tinypngCompress } from "@/utils/gulp";
+
+
 interface IArguments {
   /* 文件 */
   files: string[];
@@ -30,15 +33,14 @@ const tinyCommand: CommandModule<{}, IArguments> = {
     return yargs as any;
   }, // 引用抽象函数
   handler: async (argv: ArgumentsCamelCase<IArguments>) => {
-    console.log("argv", argv);
-    const files = argv.files || []; // 确保 paths 始终是数组
+    const files = argv.files || [];
     const urlFiles = files.filter(isUrl).filter(isImageFile);
     const localFiles = files.filter((file) => !isUrl(file)).filter(isImageFile);
-    const urlStream = download2gulp(urlFiles);
-    const localStream = gulp.src(localFiles);
-    console.log("匹配到的图片文件:", localStream, urlStream);
-    // 输出到 'output' 目录
-    mergeStream(urlStream, localStream).pipe(gulp.dest("output"));
+    const urlStream = download(urlFiles); // 下载完成后重新创建流
+    const localStream = gulp.src(localFiles, { encoding: false }); // 确保读取为 Buffer
+    // 合并两个流并进行处理
+    const mergedStream = mergeStream(urlStream, localStream);
+    mergedStream.pipe(tinypngCompress()).pipe(gulp.dest("output"));
   },
 };
 

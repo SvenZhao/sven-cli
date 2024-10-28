@@ -1,5 +1,6 @@
 const path = require("path");
 const nodeExternals = require("webpack-node-externals");
+const CopyWebpackPlugin = require("copy-webpack-plugin");
 const webpack = require("webpack");
 
 const isProduction = process.env.NODE_ENV === "production";
@@ -38,6 +39,14 @@ module.exports = {
     new webpack.BannerPlugin({
       banner: "#!/usr/bin/env node",
       raw: true,
+    }),
+    new CopyWebpackPlugin({
+      patterns: [
+        {
+          from: path.resolve(__dirname, "node_modules/tinify/lib/data/cacert.pem"),
+          to: path.resolve(__dirname, "dist/data"),
+        },
+      ],
     }),
   ],
   optimization: {
