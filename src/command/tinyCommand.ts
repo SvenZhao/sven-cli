@@ -6,8 +6,8 @@ import download from "gulp-download2";
 import { promisify } from "util";
 import stream from "stream";
 import log from "@/utils/log";
-import { tinypngCompress } from "@/utils/gulp";
 import { isImageFile } from "@/utils/files";
+import { tinypngCompressGulp } from "@/utils/gulp";
 const finished = promisify(stream.finished);
 
 interface IArguments {
@@ -40,7 +40,7 @@ const TinyCommand: CommandModule<{}, IArguments> = {
         await Promise.all(
             files.map(async (file) => {
                 const vfsfile = isUrl(file) ? download(file, {}) : vfs.src(file, { encoding: false });
-                const processingStream = vfsfile.pipe(tinypngCompress()).pipe(vfs.dest("output"));
+                const processingStream = vfsfile.pipe(tinypngCompressGulp()).pipe(vfs.dest("output"));
                 return finished(processingStream);
             })
         );

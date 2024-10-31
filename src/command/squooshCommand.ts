@@ -6,7 +6,7 @@ import download from "gulp-download2";
 import { promisify } from "util";
 import stream from "stream";
 import log from "@/utils/log";
-import { squooshCompress } from "@/utils/gulp";
+import { squooshCompressGulp } from "@/utils/gulp";
 import { ImagePool } from "@squoosh/lib";
 import { isImageFile } from "@/utils/files";
 const finished = promisify(stream.finished);
@@ -37,7 +37,7 @@ const SquooshCommand: CommandModule<{}, IArguments> = {
         // 压缩处理
         await Promise.all(files.map(async (file) => {
             const vfsfile = isUrl(file) ? download(file, {}) : vfs.src(file, { encoding: false });
-            const processingStream = vfsfile.pipe(squooshCompress(imagePool)).pipe(vfs.dest("output"));
+            const processingStream = vfsfile.pipe(squooshCompressGulp(imagePool)).pipe(vfs.dest("output"));
             return finished(processingStream);
         }));
         await imagePool.close();
