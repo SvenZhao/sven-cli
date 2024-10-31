@@ -3,7 +3,7 @@ import { basename } from "path";
 import Vinyl from "vinyl";
 import log from "./log";
 import { ImagePool } from "@squoosh/lib";
-import streamToBuffer from "stream-to-buffer";
+import { streamToBufferAsync } from "./gulp";
 
 // Tinify API 相关设置
 const apiKeys = [
@@ -26,34 +26,31 @@ export async function tinypngCompress(file: Vinyl): Promise<Vinyl> {
     tinify.key = getNextApiKey();
     const fileName = basename(file.path);
 
-    // Stream to Buffer
-    if (file.isStream()) {
-        file.contents = await new Promise((resolve, reject) => {
-            streamToBuffer(file.contents, (err, buffer) => {
-                if (err) reject(err);
-                else resolve(buffer);
-            });
-        });
+    try {
+        if (file.isStream()) {
+            file.contents = await streamToBufferAsync(file.contents);
+        }
+        if (!file.isBuffer()) {
+            log.info(`文件类型不支持: ${fileName}`);
+            return file;
+        }
+        const sourceData = file.contents;
+        const originalSize = sourceData.length;
+        log.info(`开始压缩: ${fileName}，原始大小: ${(originalSize / 1024).toFixed(2)} KB`);
+
+        const resultData = await tinify.fromBuffer(sourceData).toBuffer();
+        const compressedSize = resultData.length;
+
+        file.contents = Buffer.from(resultData);
+        log.done(
+            `压缩完成: ${fileName}，压缩大小: ${(compressedSize / 1024).toFixed(2)} KB，压缩率: ${(
+                (1 - compressedSize / originalSize) * 100
+            ).toFixed(2)}%`
+        );
+    } catch (error: any) {
+        log.error(`压缩失败: ${fileName}，错误信息: ${error.message}`);
     }
 
-    if (!file.isBuffer()) {
-        log.info(`文件类型不支持: ${fileName}`);
-        return file;
-    }
-
-    const sourceData = file.contents;
-    const originalSize = sourceData.length;
-    log.info(`开始压缩: ${fileName}，原始大小: ${(originalSize / 1024).toFixed(2)} KB`);
-
-    const resultData = await tinify.fromBuffer(sourceData).toBuffer();
-    const compressedSize = resultData.length;
-
-    file.contents = Buffer.from(resultData);
-    log.done(
-        `压缩完成: ${fileName}，压缩大小: ${(compressedSize / 1024).toFixed(2)} KB，压缩率: ${(
-            (1 - compressedSize / originalSize) * 100
-        ).toFixed(2)}%`
-    );
     return file;
 }
 
@@ -97,44 +94,46 @@ const encodeOptionsMap = {
         }
     }
 };
-
 // Squoosh 压缩函数
 export async function squooshCompress(file: Vinyl, imagePool: ImagePool): Promise<Vinyl> {
     const fileName = basename(file.path);
     log.info(`开始处理: ${fileName}`);
-    if (file.isStream()) {
-        file.contents = await new Promise((resolve, reject) => {
-            streamToBuffer(file.contents, (err, buffer) => {
-                if (err) reject(err);
-                else resolve(buffer);
-            });
-        });
-    }
-    if (file.isBuffer()) {
-        const originalSize = file.contents.length;
-        const fileExt = fileName.split('.').pop()?.toLowerCase();
-        if (fileExt && encodeOptionsMap[fileExt]) {
-            const encodeOptions = encodeOptionsMap[fileExt];
-            log.info(`开始压缩: ${fileName}`);
 
-            const image = imagePool.ingestImage(file.contents);
-            await image.encode(encodeOptions);
+    try {
+        if (file.isStream()) {
+            file.contents = await streamToBufferAsync(file.contents);
+        }
 
-            const result = Object.values(image.encodedWith).find(res => res && res.binary);
-            if (result) {
-                file.contents = Buffer.from(result.binary);
-                const compressedSize = file.contents.length;
-                log.done(
-                    `压缩完成: ${fileName}，原始大小: ${(originalSize / 1024).toFixed(2)} KB，压缩比例: ${(compressedSize / 1024).toFixed(2)} KB，压缩率: ${(
-                        (1 - compressedSize / originalSize) * 100
-                    ).toFixed(2)}%`
-                );
+        if (file.isBuffer()) {
+            const originalSize = file.contents.length;
+            const fileExt = fileName.split('.').pop()?.toLowerCase();
+
+            if (fileExt && encodeOptionsMap[fileExt]) {
+                const encodeOptions = encodeOptionsMap[fileExt];
+                log.info(`开始压缩: ${fileName}`);
+
+                const image = imagePool.ingestImage(file.contents);
+                await image.encode(encodeOptions);
+
+                const result = Object.values(image.encodedWith).find(res => res && res.binary);
+                if (result) {
+                    file.contents = Buffer.from(result.binary);
+                    const compressedSize = file.contents.length;
+                    log.done(
+                        `压缩完成: ${fileName}，原始大小: ${(originalSize / 1024).toFixed(2)} KB，压缩比例: ${(compressedSize / 1024).toFixed(2)} KB，压缩率: ${(
+                            (1 - compressedSize / originalSize) * 100
+                        ).toFixed(2)}%`
+                    );
+                }
+            } else {
+                log.warn(`不支持的文件类型: ${fileName}`);
             }
         } else {
             log.warn(`不支持的文件类型: ${fileName}`);
         }
-    } else {
-        log.warn(`不支持的文件类型: ${fileName}`);
+    } catch (error) {
+        log.error(`处理失败: ${fileName}，错误信息: ${error.message}`);
     }
+
     return file;
 }
