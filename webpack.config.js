@@ -46,6 +46,10 @@ module.exports = {
           from: path.resolve(__dirname, "node_modules/tinify/lib/data/cacert.pem"),
           to: path.resolve(__dirname, "dist/data"),
         },
+        {
+          from: path.resolve(__dirname, "node_modules/@squoosh/lib/build/*.wasm"), // 确认 Wasm 文件的实际路径
+          to: path.resolve(__dirname, "dist"), // 复制到 dist 目录
+        }
       ],
     }),
   ],

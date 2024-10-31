@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
-import tinyCommand from "@/command/tiny";
+import ImgCommand from "./command/imgCommand";
 
-yargs(hideBin(process.argv)).command(tinyCommand).demandCommand(1).parse();
+yargs(hideBin(process.argv))
+    .command(ImgCommand)
+    .demandCommand(1).parse();
